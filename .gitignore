@@ -1,0 +1,110 @@
+# Byte-compiled / optimized / DLL files
+__pycache__/
+*.py[cod]
+*$py.class
+
+# C extensions
+*.so
+
+# Distribution / packaging
+.Python
+env/
+build/
+develop-eggs/
+dist/
+downloads/
+eggs/
+.eggs/
+lib/
+lib64/
+parts/
+sdist/
+var/
+wheels/
+*.egg-info/
+.installed.cfg
+*.egg
+
+# PyInstaller
+*.manifest
+*.spec
+
+# Logs
+logs/*
+!logs/.gitkeep
+
+# Jupyter Notebook
+.ipynb_checkpoints
+
+# Environment files
+.env
+*.env.development
+
+# Virtualenv
+venv/
+*.venv
+env/
+
+# Spyder project settings
+.spyderproject
+.spyproject
+
+# PyCharm project settings
+.idea/
+*.iml
+
+# VS Code settings
+.vscode/
+
+# Database files
+*.db
+*.sql
+*.sqlite
+
+# Flask stuff
+instance/
+.webassets-cache
+
+# Scrapy stuff
+.scrapy
+
+# Sphinx documentation
+docs/_build/
+
+# PyBuilder
+target/
+
+# macOS files
+.DS_Store
+
+# Windows thumbnail cache
+Thumbs.db
+
+# pyenv
+.python-version
+
+# pytest cache
+.cache
+.pytest_cache/
+
+# mypy cache
+.mypy_cache/
+
+# Coverage reports
+htmlcov/
+.coverage
+.coverage.*
+*.cover
+*.py,cover
+
+# Others
+*.log
+*.csv
+*.json
+*.tmp
+*.bak
+*.swp
+*.swo
+
+# Node modules
+node_modules/

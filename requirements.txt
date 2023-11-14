@@ -1,0 +1,9 @@
+aiohttp
+pyotp
+python-dotenv
+cachetools
+asyncio
+motor
+pymongo
+pwinput
+aiofiles
