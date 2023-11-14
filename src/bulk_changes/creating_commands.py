@@ -6,9 +6,8 @@ logger = create_logger(__name__)
 
 async def get_profile_id(one_edge_api, profile_name):
     """
-    get profile list from the OneEdge API.
+    Get profile ID from the OneEdge API.
     """
-    profile_id_found = None
     try:
         response = await one_edge_api.run_command({
             "command": "lwm2m.profile.list",
@@ -16,44 +15,40 @@ async def get_profile_id(one_edge_api, profile_name):
                 "limit": 100,
                 "offset": 0
             }
-          })
-        profile_ids = [item['id'] for item in response["params"]['result']]
-        device_profiles = [item['name'] for item in response["params"]['result']]
-        profile_list = dict(zip(profile_ids, device_profiles))
-        for profile_id, profile_name in profile_list.items():
-            if profile_name == profile_name:
-                profile_id_found = profile_id
-                break  # Stop searching once the name is found
-            else:
-                print(f"Profile name '{profile_name}' not found.")
-        return profile_id_found
-    except OneEdgeApiError as e:
-        logger.error(f"Failed to get profile list: {e}")
-        return None
+        })
 
+        profile_list = response.get("params", {}).get("result", [])
+        
+        for profile in profile_list:
+            if profile.get('name') == profile_name:
+                return profile['id']
+
+        print(f"Profile name '{profile_name}' not found.")
+        return None 
+    except OneEdgeApiError as e:
+        logger.error(f"Error while fetching profile: {e}")
+        return None  
 
 async def get_thing_def_key(one_edge_api, thing_name):
     """
-    get thing_def list from the OneEdge API.
+    Get thing definition key from the OneEdge API.
     """
-    thing_def_key_found = None
     try:
         response = await one_edge_api.run_command({
             "command": "thing_def.list"
         })
-        thing_def_key = [item['key'] for item in response["params"]['result']]
-        thing_def_name = [item['name'] for item in response["params"]['result']]
-        thing_def_list = dict(zip(thing_def_key, thing_def_name))
-        for thing_def_key, thing_def_name in thing_def_list.items():
-            if thing_def_name == thing_name:
-                thing_def_key_found = thing_def_key
-                break  # Stop searching once the name is found
-            else:
-                print(f"Profile name '{thing_name}' not found.")
-        return thing_def_key_found    
+
+        thing_def_list = response.get("params", {}).get("result", [])
+        
+        for thing_def in thing_def_list:
+            if thing_def.get('name') == thing_name:
+                return thing_def['key']
+
+        print(f"Thing definition name '{thing_name}' not found.")
+        return None  # Thing definition not found
     except OneEdgeApiError as e:
-        logger.error(f"Failed to get profile list: {e}")
-        return None
+        logger.error(f"Failed to get thing definition list: {e}")
+        return None  # Handle the error and return an appropriate value
 
 async def create_commands_tags(imei_list, tags_list):
     """

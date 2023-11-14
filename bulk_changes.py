@@ -66,13 +66,16 @@ async def main():
         choice = input("Enter your choice: ").strip()
 
         if choice.lower() == 'q':
+            print("Closing session...")
+            session = await api.close_session()
+            if session.get("1", {}).get("success"):
+                print("session closed successfully.")
             break
 
         selected_option = options.get(choice)
         if selected_option:
             try:
                 if choice == '4':
-                    # Directly using the file path from the command-line argument
                     imeis, settings = await reading_file_for_IMEI_and_settings(args.file_path)
                     commands_json = await selected_option['func'](imeis, settings)
                     
@@ -95,13 +98,9 @@ async def main():
             continue
 
         print("Publishing commands...")
-        results = await api.run_commands(commands_json)
-        print(json.dumps(results, indent=4))
+        await api.run_commands(commands_json)
+        print("imei {} updated successfully.".format(imeis))
 
-    print("Closing session...")
-    session = await api.close_session()
-    if session.get("1", {}).get("success"):
-        print("session closed successfully.")
 
 if __name__ == "__main__":
     asyncio.run(main())
