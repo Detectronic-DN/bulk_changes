@@ -76,7 +76,7 @@ async def main():
         if selected_option:
             try:
                 if choice == '4':
-                    imeis, settings = await reading_file_for_IMEI_and_settings(args.file_path)
+                    imeis, settings = await read_imei_and_setting(args.file_path)
                     commands_json = await selected_option['func'](imeis, settings)
                     
                 else:
@@ -84,7 +84,7 @@ async def main():
                     if selected_option.get('validation') and not selected_option['validation'](str(input_value)):
                         print("Invalid input. Please try again.")
                         continue
-                    imeis = await read_file_for_Imeis(args.file_path)
+                    imeis = read_imeis(args.file_path)
                     if 'post_process' in selected_option:
                         input_value = await selected_option['post_process'](api, str(input_value))
                     else:
