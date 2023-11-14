@@ -45,6 +45,11 @@ async def main():
         '5': {
             'prompt': '',
             'func': create_commands_undeploy
+        },
+        '6': {
+            'prompt': 'Enter the Tag name to delete: ',
+            'func': create_commands_delete_tag,
+            'validation': lambda x: all(tag.strip() for tag in x.split(','))
         }
     }
 
@@ -55,6 +60,7 @@ async def main():
         print("3. Change Thing_def to IMEIs")
         print("4. Add attributes settings to all IMEIs")
         print("5. Undeploy or change data destination for removed loggers")
+        print("6. Remove a tag from a list of IMEIs")
         print("q. Quit")
 
         choice = input("Enter your choice: ").strip()

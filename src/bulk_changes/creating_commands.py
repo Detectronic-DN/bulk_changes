@@ -169,4 +169,23 @@ async def create_commands_undeploy(imei_list):
     }
 
 
+async def create_commands_delete_tag(imei_list, tags_list):
+    """
+    Creates commands based on the given IMEI list.
 
+    Parameters:
+        imei_list (list): A list of IMEI numbers.
+
+    Returns:
+        dict: A dictionary containing the created commands with incremental keys as strings.
+    """
+    return {
+        str(i): {
+            "command": "thing.tag.delete",
+            "params": {
+                "thingKey": imei_number,
+                "tags": tags_list
+            }
+        }
+       for i, imei_number in enumerate(imei_list, start=1)
+    }
