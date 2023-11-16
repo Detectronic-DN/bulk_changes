@@ -76,7 +76,7 @@ async def main():
         if selected_option:
             try:
                 if choice == '4':
-                    imeis, settings = await read_imei_and_setting(args.file_path)
+                    imeis, settings = read_imei_and_setting(args.file_path)
                     commands_json = await selected_option['func'](imeis, settings)
                     
                 else:
