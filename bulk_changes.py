@@ -203,7 +203,7 @@ async def publish_commands(commands_json: Dict[str, Any]) -> None:
         return
     try:
         print("Publishing commands...")
-        results: Dict[str, Any] = api.run_commands(commands_json)
+        results: Dict[str, Any] = await api.run_commands(commands_json)
         print(json.dumps(results, indent=4))
         await close_api_session(api)
     except Exception as e:
