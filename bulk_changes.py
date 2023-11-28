@@ -189,7 +189,7 @@ async def publish_commands(commands_json: Dict[str, Any]) -> None:
     Returns:
         None
     """
-    print("Connecting to OneEdge API...")
+    # print("Connecting to OneEdge API...")
     API_URL: str = "https://api-de.devicewise.com/api"
     api: OneEdgeApi = OneEdgeApi(API_URL)
     try:
@@ -204,8 +204,8 @@ async def publish_commands(commands_json: Dict[str, Any]) -> None:
         logger.error("An error occurred during authentication: %s", str(error))
         return
     try:
-        print("Publishing commands...")
-        print(commands_json)
+        logger.info("Publishing commands...")
+        # print(commands_json)
         results: Dict[str, Any] = await api.run_commands(commands_json)
         print(json.dumps(results, indent=4))
         await close_api_session(api)
@@ -226,7 +226,7 @@ async def close_api_session(api: Any) -> None:
     try:
         session: Dict[str, Dict[str, bool]] = await api.close_session()
         if session.get("1", {}).get("success"):
-            print("Session closed successfully.")
+            logger.info("Session closed successfully.")
         else:
             logger.warning("Failed to close session properly.")
     except Exception as e:
