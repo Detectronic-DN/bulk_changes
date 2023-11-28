@@ -179,38 +179,25 @@ async def remove_tags(file_path: str) -> Optional[List[str]]:
         return None
 
 
-async def publish_commands(commands_json: Dict[str, Any]) -> None:
+
+async def publish_commands(api: OneEdgeApi, commands_json: Dict[str, Any]) -> None:
     """
     Publishes commands using the OneEdge API.
 
     Args:
+        api (OneEdgeApi): The authenticated API object.
         commands_json (Dict[str, Any]): A dictionary representing the commands to be published.
 
     Returns:
         None
     """
-    # print("Connecting to OneEdge API...")
-    API_URL: str = "https://api-de.devicewise.com/api"
-    api: OneEdgeApi = OneEdgeApi(API_URL)
     try:
-        if not api.session_id:
-            logger.info("Authenticating to telit")
-            await authenticate(api)
-        else:
-            await api.verify_auth_state()
-            logger.info("Session already authenticated")
-        logger.info("Connected!")
-    except OneEdgeApiError as error:
-        logger.error("An error occurred during authentication: %s", str(error))
-        return
-    try:
-        logger.info("Publishing commands...")
-        # print(commands_json)
+        print("Publishing commands...")
         results: Dict[str, Any] = await api.run_commands(commands_json)
-        print(json.dumps(results, indent=4))
-        await close_api_session(api)
+        return results
     except Exception as e:
         logger.error(f"Error publishing commands: {e}")
+
 
 
 async def close_api_session(api: Any) -> None:
@@ -236,18 +223,26 @@ async def close_api_session(api: Any) -> None:
 async def main() -> None:
     """
     Process a file and generate commands.
-
-    Args:
-        None
-
-    Returns:
-        None
     """
     parser = argparse.ArgumentParser(
         description='Process a file and generate commands.')
     parser.add_argument(
         'file_path', help='The path to the file to be processed')
     args = parser.parse_args()
+
+    API_URL: str = "https://api-de.devicewise.com/api"
+    api: OneEdgeApi = OneEdgeApi(API_URL)
+    try:
+        if not api.session_id:
+            logger.info("Authenticating to telit")
+            await authenticate(api)
+        else:
+            await api.verify_auth_state()
+            logger.info("Session already authenticated")
+        logger.info("Connected!")
+    except OneEdgeApiError as error:
+        logger.error("An error occurred during authentication: %s", str(error))
+        return
 
     choice_to_function: Dict[str, Callable[[str], Optional[Dict[str, str]]]] = {
         '1': add_tags,
@@ -262,7 +257,8 @@ async def main() -> None:
         choice = await get_user_choice()
 
         if choice == 'q':
-            logger.info("Exiting the program.")
+            logger.info("Closing the session and exiting the program.")
+            await close_api_session(api)
             break
 
         if choice not in choice_to_function:
@@ -272,7 +268,8 @@ async def main() -> None:
         try:
             commands_json = await choice_to_function[choice](args.file_path)
             if commands_json:
-                await publish_commands(commands_json)
+                results = await publish_commands(api, commands_json)
+                print(json.dumps(results, indent=4))
 
         except Exception as e:
             logger.error(f"An error occurred: {e}")

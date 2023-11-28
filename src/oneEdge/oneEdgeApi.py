@@ -223,7 +223,7 @@ class OneEdgeApi:
             result = await self.run_command(cmd)
             if not result['success']:
                 return results
-                
+
             results.extend(result['params']['result'])
             cmd['params']['iterator'] = result['params']['iterator']
 
@@ -271,22 +271,24 @@ class OneEdgeApi:
         Close the session with the API.
         """
         try:
-            await self.run_command(
-                {
-                    "command": "session.end",
-                    "params": {
-                        "id": self.session_id
-                    }
+            print(self.session_id)
+            res = await self.run_command({
+                "command": "session.end",
+                "params": {
+                    "id": self.session_id
                 }
-            )
+            })
+            print(json.dumps(res, indent=4))
             self._delete_session_id()
             self.session_id = None
             self._auth_state = AuthState.NOT_AUTHENTICATED
             self.last_error = None
         except OneEdgeApiError as e:
+            error_message = str(e) if e else "Unknown error"
             logger.exception(
-                "An error occurred while closing the session: %s", e)
-            raise OneEdgeApiError(f"API error occurred: {e}") from e
+                f"An error occurred while closing the session: {error_message}")
+            raise OneEdgeApiError(
+                f"API error occurred: {error_message}") from e
 
     async def verify_auth_state(self):
         """
