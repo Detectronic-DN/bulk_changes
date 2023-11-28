@@ -14,7 +14,7 @@ logger = create_logger(__name__)
 async def get_user_choice() -> str:
     """
     Prompts the user to choose an option and returns the choice as a string.
-    
+
     Returns:
         str: The user's choice.
     """
@@ -31,6 +31,7 @@ async def get_user_choice() -> str:
         print(option)
     choice: str = input("Enter your choice: ")
     return choice
+
 
 async def add_tags(file_path: str) -> Optional[str]:
     """
@@ -49,26 +50,26 @@ async def add_tags(file_path: str) -> Optional[str]:
         print("Reading the file...")
         imeis = read_imeis(file_path)
         print("Creating commands...")
-        commands_json = create_commands_tags(imeis, tag_names)
+        commands_json = await create_commands_tags(imeis, tag_names)
         return commands_json
     except Exception as e:
         logger.error(f"Error processing option 1: {e}")
         return None
-    
+
 
 async def change_device_profile(file_path: str) -> Optional[Dict[str, str]]:
     """Change the device profile.
-    
+
     Args:
         file_path (str): The path to the file containing the IMEIs.
-        
+
     Returns:
         dict: The commands JSON if successful, None otherwise.
     """
     profiles: Dict[str, str] = get_profile_id()
     profile_name: str = input("Enter the profile name: ")
     profile_id: Optional[str] = profiles.get(profile_name)
-    
+
     if not profile_id:
         print("Error: Profile name not found.")
         return None
@@ -76,12 +77,12 @@ async def change_device_profile(file_path: str) -> Optional[Dict[str, str]]:
         print("Reading the file...")
         imeis = read_imeis(file_path)
         print("Creating commands...")
-        commands_json = create_commands_device_profile(imeis, profile_id)
+        commands_json = await create_commands_device_profile(imeis, profile_id)
         return commands_json
     except Exception as e:
         logger.error(f"Error processing option 2: {e}")
         return None
-    
+
 
 async def change_thing_def(file_path: str) -> Optional[Dict[str, str]]:
     """
@@ -102,14 +103,15 @@ async def change_thing_def(file_path: str) -> Optional[Dict[str, str]]:
             print("Reading the file...")
             imeis = read_imeis(file_path)
             print("Creating commands...")
-            commands_json = create_commands_device_profile(imeis, thing_def_key)
+            commands_json = await create_commands_device_profile(imeis, thing_def_key)
             return commands_json
         except Exception as e:
             logger.error(f"Error processing option 3: {e}")
     else:
         print("Error: Thing name not found.")
     return None
-    
+
+
 async def add_settings(file_path: str) -> Optional[Dict[str, Any]]:
     """
     Reads the file at the given path and creates commands based on the IMEIs and settings.
@@ -124,7 +126,7 @@ async def add_settings(file_path: str) -> Optional[Dict[str, Any]]:
         print("Reading the file...")
         imeis, settings = read_imei_and_setting(file_path)
         print("Creating commands...")
-        commands_json = create_commands_settings(imeis, settings)
+        commands_json = await create_commands_settings(imeis, settings)
         return commands_json
     except Exception as e:
         logger.error(f"Error processing option 4: {e}")
@@ -147,12 +149,12 @@ async def undeploy(file_path: str) -> Optional[str]:
         logger.info("Reading the file...")
         imeis = read_imeis(file_path)
         logger.info("Creating commands...")
-        commands_json = create_commands_undeploy(imeis)
+        commands_json = await create_commands_undeploy(imeis)
         return commands_json
     except Exception as e:
         logger.error(f"Error processing option 5: {e}")
         return None
-    
+
 
 async def remove_tags(file_path: str) -> Optional[List[str]]:
     """
@@ -170,7 +172,7 @@ async def remove_tags(file_path: str) -> Optional[List[str]]:
         logger.info("Reading the file...")
         imeis = read_imeis(file_path)
         logger.info("Creating commands...")
-        commands_json = create_commands_delete_tag(imeis, tag_names)
+        commands_json = await create_commands_delete_tag(imeis, tag_names)
         return commands_json
     except Exception as e:
         logger.error(f"Error processing option 6: {e}")
@@ -180,10 +182,10 @@ async def remove_tags(file_path: str) -> Optional[List[str]]:
 async def publish_commands(commands_json: Dict[str, Any]) -> None:
     """
     Publishes commands using the OneEdge API.
-    
+
     Args:
         commands_json (Dict[str, Any]): A dictionary representing the commands to be published.
-    
+
     Returns:
         None
     """
@@ -214,10 +216,10 @@ async def publish_commands(commands_json: Dict[str, Any]) -> None:
 async def close_api_session(api: Any) -> None:
     """
     Close the API session.
-    
+
     Args:
         api (Any): The API object.
-    
+
     Raises:
         Exception: If there is an error closing the session.
     """
@@ -241,8 +243,10 @@ async def main() -> None:
     Returns:
         None
     """
-    parser = argparse.ArgumentParser(description='Process a file and generate commands.')
-    parser.add_argument('file_path', help='The path to the file to be processed')
+    parser = argparse.ArgumentParser(
+        description='Process a file and generate commands.')
+    parser.add_argument(
+        'file_path', help='The path to the file to be processed')
     args = parser.parse_args()
 
     choice_to_function: Dict[str, Callable[[str], Optional[Dict[str, str]]]] = {
@@ -272,7 +276,6 @@ async def main() -> None:
 
         except Exception as e:
             logger.error(f"An error occurred: {e}")
-
 
 
 if __name__ == "__main__":
