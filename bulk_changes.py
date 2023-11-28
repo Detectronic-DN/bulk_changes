@@ -266,7 +266,7 @@ async def main() -> None:
             continue
 
         try:
-            commands_json = choice_to_function[choice](args.file_path)
+            commands_json = await choice_to_function[choice](args.file_path)
             if commands_json:
                 await publish_commands(commands_json)
 
