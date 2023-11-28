@@ -271,7 +271,6 @@ class OneEdgeApi:
         Close the session with the API.
         """
         try:
-            print(self.session_id)
             res = await self.run_command({
                 "command": "session.end",
                 "params": {
@@ -280,9 +279,6 @@ class OneEdgeApi:
             })
             print(json.dumps(res, indent=4))
             self._delete_session_id()
-            self.session_id = None
-            self._auth_state = AuthState.NOT_AUTHENTICATED
-            self.last_error = None
         except OneEdgeApiError as e:
             error_message = str(e) if e else "Unknown error"
             logger.exception(
