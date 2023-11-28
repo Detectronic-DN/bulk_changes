@@ -253,7 +253,12 @@ async def main() -> None:
     }
 
     while True:
-        choice = await get_user_choice()
+        try:
+            choice = await asyncio.wait_for(get_user_choice(), timeout=10)
+        except asyncio.TimeoutError:
+            logger.info("No input received. Exiting the program.")
+            await close_api_session(api)
+            break
 
         if choice == 'q':
             logger.info("Closing the session and exiting the program.")
