@@ -1,15 +1,15 @@
 import os
 import asyncio
-import pyotp
 from pwinput import pwinput
-from src.oneEdge.oneEdgeApi import OneEdgeApiError, AuthState
-from src.utils.logger import create_logger, log_info, log_error
+from src.oneEdge.oneEdgeApi import AuthState, OneEdgeApiError
+from src.utils.logger import create_logger
 from dotenv import load_dotenv
 
-# Load environment variables
 dotenv_path = os.path.join(os.path.dirname(__file__), "/home/dinesh_detectronic/telit/config/.env.development")
 if os.path.exists(dotenv_path):
     load_dotenv(dotenv_path)
+
+logger = create_logger(__name__)
 
 CONFIG = {
     "username": os.getenv("TELIT_USERNAME"),
@@ -17,68 +17,61 @@ CONFIG = {
     "shared_secret": os.getenv("TELIT_MFA"),
 }
 
-if not CONFIG["username"] or not CONFIG["password"]:
-    CONFIG["username"] = input("Enter your Telit username: ")
-    CONFIG["password"] = pwinput(prompt= "Enter your Telit password: ", mask="*")
-
-logger = create_logger(__name__)
-
 async def authenticate(api):
     """
-    Authenticate the OneEdge API.
+    Authenticates with the OneEdge API.
     """
-    max_retries = 3
-    retry_delay = 5
+    max_attempts = 3
+    attempts = 0
+    delay = 5
+    mfa_code = None
+    if api.auth_state == AuthState.AUTHENTICATED:
+        await api.verify_auth_state()
+        
+    while api.auth_state != AuthState.AUTHENTICATED and attempts < max_attempts:
+        if api.auth_state == AuthState.NOT_AUTHENTICATED:
 
-    for _ in range(max_retries):
-        if api.auth_state == AuthState.AUTHENTICATED:
-            break
+            if not CONFIG["username"] or not CONFIG["password"]:
+                CONFIG["username"] = input("Enter your Telit username: ")
+                CONFIG["password"] = pwinput(prompt= "Enter your Telit password: ", mask="*")
 
-        if not CONFIG["username"] or not CONFIG["password"]:
-            logger.error(
-                "Invalid username or password. Please check the configuration.")
-            break  
+            username = CONFIG["username"]
+            password = CONFIG["password"]
 
-        try:
-            await authenticate_with_username_password(api, logger)
-            if api.auth_state == AuthState.AUTHENTICATED:
-                break  # Break after successful authentication
-        except OneEdgeApiError as error:
-            logger.error("Authentication failed: %s", str(error))
-            if str(error) == "API error occurred: -90041":
-                if CONFIG["shared_secret"] is not None:
-                    mfa_code = pyotp.TOTP(CONFIG["shared_secret"]).now()
-                else:
-                    mfa_code = input("Enter your MFA code: ")
+            if not username or not password:
+                logger.error("Username or password not provided.")
+                break
+            try:
+                result = await api.authenticate(username, password)
+                await asyncio.sleep(1)
+                if not result:
+                    if api.last_error == -90041:
+                        api.auth_state = AuthState.WAITING_FOR_MFA
+                        logger.info("MFA authentication required.")
+                        if not mfa_code:
+                            mfa_code = input("Enter your MFA code: ")
+                        try:
+                            await asyncio.sleep(2)
+                            await api.authenticate(username, mfa_code)
+                            await asyncio.sleep(1)
+                        except OneEdgeApiError as e:
+                            logger.error(f"Authentication failed: %s", str(e))
+                            continue
+                    elif api.last_error == -90000:
+                        logger.info("Session expired. Re-authenticating...")
+                        api._delete_session_id()
+                        continue
+                    else:
+                        logger.error("Authentication failed.")
+                        break
+            except OneEdgeApiError as e:
+                logger.error(f"Authentication failed: %s", str(e))
+                break
+            
+        attempts += 1
+        await asyncio.sleep(delay)
 
-                await authenticate_with_mfa(api, logger, mfa_code)
-                if api.auth_state == AuthState.AUTHENTICATED:
-                    break  # Break after successful MFA
-
-        await asyncio.sleep(retry_delay)  # Wait before retrying
-
-
-async def authenticate_with_username_password(api, logger):
-    """
-    Authenticate with username and password.
-    """
-    username = CONFIG["username"]
-    password = CONFIG["password"]
-
-    try:
-        await api.login(username, password)
-        log_info(logger, "Authenticated")
-    except OneEdgeApiError as error:
-        raise error
-
-
-async def authenticate_with_mfa(api, logger, mfa_code):
-    """
-    Authenticate with multi-factor authentication (MFA).
-    """
-    try:
-        await api.login(CONFIG["username"], mfa_code)
-        log_info(logger, "Authenticated with MFA")
-    except OneEdgeApiError as error:
-        log_error(logger, f"Authentication failed: {error}")
-
+    if api.auth_state == AuthState.AUTHENTICATED:
+        logger.info("Successfully authenticated with the OneEdge API.")
+    else:
+        logger.error("Failed to authenticate with the OneEdge API.")

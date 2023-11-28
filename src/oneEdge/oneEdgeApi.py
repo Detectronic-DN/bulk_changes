@@ -3,14 +3,13 @@ OneEdge API Module
 
 This module provides a class to interact with the OneEdge API.
 """
+from enum import Enum
+import os
+import json
 import aiohttp
 import asyncio
-from cachetools import TTLCache
 from src.utils.logger import create_logger
-from enum import Enum
 
-
-session_id_cache = TTLCache(maxsize=1, ttl=3600)
 logger = create_logger(__name__)
 
 
@@ -27,50 +26,83 @@ class OneEdgeApiError(Exception):
     def __init__(self, message):
         """
         Initializes a new instance of the class.
-
-        Args:
-            message (str): The message to be stored in the object.
-
-        Returns:
-            None
         """
         self.message = message
         super().__init__(message)
 
 
 class OneEdgeApi:
-    endpoint_url = None
-    _session_id = None
-    _last_error = None
-    _auth_state = AuthState.NOT_AUTHENTICATED
+    FOLDER_NAME = "session_data"
+    FILE_NAME = "session_id.txt"
 
     def __init__(self, endpoint_url):
         """
         Initializes a new instance of the class.
+        """
+        self.endpoint_url = endpoint_url
+        self._session_id = self._read_session_id()
+        self._last_error = None
+        self._auth_state = AuthState.NOT_AUTHENTICATED
+
+    def _session_file_path(self):
+        """
+        Returns the file path of the session file.
+        """
+        dir_path = os.path.dirname(os.path.realpath(__file__))
+        folder_path = os.path.join(dir_path, self.FOLDER_NAME)
+        if not os.path.exists(folder_path):
+            os.makedirs(folder_path)
+        return os.path.join(folder_path, self.FILE_NAME)
+
+    def _read_session_id(self):
+        """
+        Reads the session ID from the session file.
+
+        Returns:
+            str: The session ID read from the file, or None if the file does not exist.
+        """
+        file_path = self._session_file_path()
+        if os.path.exists(file_path):
+            with open(file_path, 'r', encoding='utf-8') as file:
+                return file.read().strip()
+        return None
+
+    def _write_session_id(self, session_id):
+        """
+        Writes the given session ID to the session file.
 
         Args:
-            message (str): The message to be stored in the object.
+            session_id (str): The session ID to be written to the file.
 
         Returns:
             None
         """
-        self.endpoint_url = endpoint_url
-        self._session_id = session_id_cache.get('session_id')
-        self._last_error = None
+        file_path = self._session_file_path()
+        with open(file_path, 'w', encoding='utf-8') as file:
+            file.write(session_id)
+
+    def _delete_session_id(self):
+        """
+        Delete the session file.
+        """
+        file_path = self._session_file_path()
+        if os.path.exists(file_path):
+            os.remove(file_path)
+        self.session_id = None
         self._auth_state = AuthState.NOT_AUTHENTICATED
+        self.last_error = None
 
     @property
     def session_id(self):
         """Gets the session id"""
-        return session_id_cache.get('session_id', None) or self._session_id
-    
+        return self._session_id
+
     @session_id.setter
     def session_id(self, value):
         """Sets the session id"""
-        session_id_cache['session_id'] = value
         self._session_id = value
-        self.auth_state = self._calculate_auth_state()
-        session_id_cache['session_id'] = self._session_id
+        self._write_session_id(value)
+        self._auth_state = self._calculate_auth_state()
 
     @property
     def last_error(self):
@@ -81,7 +113,7 @@ class OneEdgeApi:
     def last_error(self, value):
         """Sets the last error"""
         self._last_error = value
-        self.auth_state = self._calculate_auth_state()
+        self._auth_state = self._calculate_auth_state()
 
     @property
     def auth_state(self):
@@ -94,20 +126,11 @@ class OneEdgeApi:
         if state == self._auth_state:
             return
         self._auth_state = state
-    
-    @classmethod
-    async def create(cls, endpoint_url):
-        """Class method to initialize OneEdgeApi with async operations."""
-        self = OneEdgeApi(endpoint_url)
-        # Perform any async initializations here if needed
-        return self
 
     def _calculate_auth_state(self):
         """
-        Calculate the authentication state based on the current session ID and last error.
-
-        Returns:
-            AuthState: The authentication state determined by the function.
+        Calculate the authentication state based on the current session ID
+        and last error.
         """
         if self.session_id is not None:
             return AuthState.AUTHENTICATED
@@ -117,70 +140,47 @@ class OneEdgeApi:
             return AuthState.NOT_AUTHENTICATED
         return AuthState.NOT_AUTHENTICATED
 
-    async def verify_auth_state(self):
-        """Check the authentication status."""
-        result = await self.run_command({
-            "command": "session.info"
-        })
-        if result["success"]:
-            self.session_id = result["params"]["id"]
-        else:
-            self.session_id = None
-            self.auth_state = AuthState.NOT_AUTHENTICATED
-
-    async def login(self, username, password):
+    async def run_command(self, command):
         """
-        Login to the OneEdge API.
-
-        Args:
-            username (str): The username to be used for authentication.
-            password (str): The password to be used for authentication.
-
-        Returns:
-            bool: True if login was successful, otherwise False.
+        Run a single command.
         """
-        result = await self.run_commands({
-            "auth": {
-                "command": "api.authenticate",
-                "params": {
-                    "username": username,
-                    "password": password
-                }
-            }
-        })
-        if result['auth']['success'] and 'sessionId' in result['auth']['params']:
-            self.session_id = result['auth']['params']['sessionId']
-            return True
-        else:
-            self.session_id = None
-            self.auth_state = AuthState.NOT_AUTHENTICATED
-            return False    
-
+        try:
+            result = await self.run_commands({
+                '1': command
+            })
+            return result.get('1', result)
+        except OneEdgeApiError as e:
+            logger.exception(
+                "An error occurred while making the request: %s", e)
 
     async def run_commands(self, cmds):
         """
         Run multiple commands asynchronously.
-
-        Args:
-            cmds (dict): The commands to be executed.
-
-        Returns:
-            dict: The results of the commands.
         """
         payload = {
             'auth': {
                 'sessionId': self.session_id
             }
         }
-
         for key, value in cmds.items():
             payload[key] = value
 
-        async with aiohttp.ClientSession() as session:
-            async with session.post(self.endpoint_url, json=payload) as response:
-                response_data = await response.json()
+        # print("payLoad: ",json.dumps(payload, indent=4))
+
+        try:
+            async with aiohttp.ClientSession() as session:
+                async with session.post(self.endpoint_url, json=payload) as response:
+                    response_data = await response.json()
+        except (aiohttp.ClientError, asyncio.TimeoutError) as e:
+            logger.error(f"An error occurred while making the request: {e}")
 
         results = response_data
+
+        if response_data is None:
+            logger.error(
+                "An error occurred while making the request: %s", response_data)
+
+        # print("results:" ,json.dumps(results, indent=4))
 
         if 'success' in response_data and not response_data['success']:
             for cmd_key in cmds:
@@ -194,99 +194,111 @@ class OneEdgeApi:
 
         if results['errorCodes']:
             self.last_error = results['errorCodes'][0]
-            self.auth_state = self._calculate_auth_state()
-            if self.auth_state == AuthState.WAITING_FOR_MFA:
-                raise OneEdgeApiError("API error occurred: -90041")
-            elif results['errorCodes'][0] == -90005:
-                await asyncio.sleep(10)
-                raise OneEdgeApiError("API error occurred: -90005")
         else:
             self.last_error = None
 
         return results
 
-    async def clear_session(self):
+    async def run_iterated_command(self, cmd):
         """
-        Clear the session.
-        """
-        session_id_cache['session_id'] = None
-        self.session_id = None
-        self.auth_state = AuthState.NOT_AUTHENTICATED
-        self.last_error = None
+        Run an iterated command with pagination.
 
-    async def run_command(self, command):
-        """
-        Run a single command.
-        """
-        result = await self.run_commands({
-            '1': command
-        })
-        return result['1'] if '1' in result else result
-
-    async def run_iterated_command(self, cmd, loop_protection_limit=100, wait_time=0.5):
-        """
-        Run an iterated command with pagination support.
-        
         Args:
-            cmd (dict): Command to run with parameters.
-            loop_protection_limit (int): Max number of iterations to protect against infinite loops.
-            wait_time (float): Time to wait between iterations to respect API rate limits.
+            cmd (dict): The command to be executed iteratively.
 
         Returns:
-            list: Accumulated results from iterated command runs.
+            list: The aggregated results from all iterations.
         """
-        cmd['params']['iterator'] = 'new'
-        cmd['params']['useSearch'] = True
-        cmd['params']['limit'] = 2000
-        cmd['params']['showCount'] = False
+        cmd['params'].update({
+            'iterator': 'new',
+            'useSearch': True,
+            'limit': 2000,
+            'showCount': False
+        })
 
         results = []
-        loop_protection = loop_protection_limit
+        max_iterations = 100
 
-        while loop_protection > 0:
+        while max_iterations > 0:
             result = await self.run_command(cmd)
             if not result['success']:
-                logger.error(f"Iterated command failed: {result.get('error')}")
-                break
+                return results
+                
+            results.extend(result['params']['result'])
+            cmd['params']['iterator'] = result['params']['iterator']
 
-            batch_results = result['params'].get('result', [])
-            if isinstance(batch_results, list):
-                results.extend(batch_results)
-            else:
-                logger.error('Received non-list batch_results from API')
-                break
+            await asyncio.sleep(0.5)
+            max_iterations -= 1
 
-            next_iterator = result['params'].get('iterator')
-            if next_iterator and next_iterator != 'new':
-                cmd['params']['iterator'] = next_iterator
-            else:
-                logger.info('No more results to iterate over, exiting.')
-                break
-
-            await asyncio.sleep(wait_time)
-            loop_protection -= 1
-
-        if loop_protection == 0:
-            logger.warning(
-                "Loop protection fired - the command may not have retrieved all results.")
+        if max_iterations == 0:
+            logger.error("Warning: Reached maximum iteration limit.")
 
         return results
 
+    async def authenticate(self, username, password):
+        """
+        Authenticate with the API using provided credentials.
+        """
+        auth_payload = {
+            "auth": {
+                "command": "api.authenticate",
+                "params": {
+                    "username": username,
+                    "password": password
+                }
+            }
+        }
+
+        try:
+            result = await self.run_commands(auth_payload)
+            # print(json.dumps(result, indent=4))
+            auth_response = result.get('auth', {})
+
+            if auth_response.get('success'):
+                self.session_id = auth_response['params'].get('sessionId')
+                self._auth_state = AuthState.AUTHENTICATED
+                return True
+            else:
+                self.last_error = auth_response.get('errorCodes', [None])[0]
+                self.auth_state = AuthState.NOT_AUTHENTICATED
+                return False
+        except OneEdgeApiError as error:
+            logger.exception(
+                "An error occurred while authenticating: %s", error)
+
     async def close_session(self):
         """
-        Close the session.
-        This method sends a command to end the session and sets the session ID to None.
-
-        Returns:
-            The result of running the command.
+        Close the session with the API.
         """
-        result = await self.run_command({
-            "command": "session.end",
-            "params": {
-                "id": self.session_id
+        try:
+            await self.run_command(
+                {
+                    "command": "session.close",
+                    "params": {
+                        "id": self.session_id
+                    }
+                }
+            )
+            self._delete_session_id()
+            self.session_id = None
+            self._auth_state = AuthState.NOT_AUTHENTICATED
+            self.last_error = None
+        except OneEdgeApiError as e:
+            logger.exception(
+                "An error occurred while closing the session: %s", e)
+            raise OneEdgeApiError(f"API error occurred: {e}") from e
+
+    async def verify_auth_state(self):
+        """
+        Check the authentication status.
+        """
+        request = await self.run_command(
+            {
+                "command": "session.info"
             }
-        })
-        self.session_id = None
-        self.auth_state = AuthState.NOT_AUTHENTICATED
-        self.last_error = None
-        return result
+        )
+        if request["success"]:
+            self.session_id = request["params"]["id"]
+        else:
+            self.session_id = None
+            self._auth_state = AuthState.NOT_AUTHENTICATED
