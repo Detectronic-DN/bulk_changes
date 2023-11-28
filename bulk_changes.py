@@ -1,5 +1,4 @@
 import argparse
-import json
 import asyncio
 from src.authentication.authenticate import authenticate
 from src.oneEdge.oneEdgeApi import OneEdgeApi
@@ -277,6 +276,7 @@ async def main() -> None:
         except Exception as e:
             logger.error(f"An error occurred: {e}")
 
+    await asyncio.sleep(5)
 
 if __name__ == "__main__":
     asyncio.run(main())
