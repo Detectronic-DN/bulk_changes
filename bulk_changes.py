@@ -269,8 +269,11 @@ async def main() -> None:
             commands_json = await choice_to_function[choice](args.file_path)
             if commands_json:
                 results = await publish_commands(api, commands_json)
-                print(json.dumps(results, indent=4))
-
+                imei = results.get("1", {}).get("params", {}).get("thingKey")
+                if imei:
+                    logger.info(f"succussfully updated for {imei}")
+                else:
+                    logger.info("failed to update")
         except Exception as e:
             logger.error(f"An error occurred: {e}")
 
