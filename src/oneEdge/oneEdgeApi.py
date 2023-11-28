@@ -273,7 +273,7 @@ class OneEdgeApi:
         try:
             await self.run_command(
                 {
-                    "command": "session.close",
+                    "command": "session.end",
                     "params": {
                         "id": self.session_id
                     }
