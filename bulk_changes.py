@@ -178,7 +178,6 @@ async def remove_tags(file_path: str) -> Optional[List[str]]:
         return None
 
 
-
 async def publish_commands(api: OneEdgeApi, commands_json: Dict[str, Any]) -> None:
     """
     Publishes commands using the OneEdge API.
@@ -196,7 +195,6 @@ async def publish_commands(api: OneEdgeApi, commands_json: Dict[str, Any]) -> No
         return results
     except Exception as e:
         logger.error(f"Error publishing commands: {e}")
-
 
 
 async def close_api_session(api: Any) -> None:
@@ -234,7 +232,7 @@ async def main() -> None:
     try:
         if not api.session_id:
             logger.info("Authenticating to telit")
-            res =await authenticate(api)
+            res = await authenticate(api)
             if not res:
                 logger.error("Authentication failed")
                 return
