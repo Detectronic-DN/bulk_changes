@@ -6,6 +6,7 @@ This module provides a class to interact with the OneEdge API.
 from enum import Enum
 import os
 import json
+import time
 import aiohttp
 import asyncio
 from src.utils.logger import create_logger
@@ -59,12 +60,23 @@ class OneEdgeApi:
         Reads the session ID from the session file.
 
         Returns:
-            str: The session ID read from the file, or None if the file does not exist.
+            str: The session ID read from the file, or None if the file does not exist or is invalid.
         """
         file_path = self._session_file_path()
         if os.path.exists(file_path):
             with open(file_path, 'r', encoding='utf-8') as file:
-                return file.read().strip()
+                file_content = file.read()
+                if file_content:
+                    try:
+                        data = json.loads(file_content)
+                        if time.time() - data["created_at"] > 28800:
+                            self._delete_session_id()
+                            return None
+                        return data["session_id"]
+                    except json.JSONDecodeError:
+                        logger.error("Error decoding JSON from the file. The file might be corrupted.")
+                        self._delete_session_id()
+                        return None
         return None
 
     def _write_session_id(self, session_id):
@@ -79,7 +91,11 @@ class OneEdgeApi:
         """
         file_path = self._session_file_path()
         with open(file_path, 'w', encoding='utf-8') as file:
-            file.write(session_id)
+            data = {
+                "session_id": session_id,
+                "created_at": time.time()
+            }
+            file.write(json.dumps(data, indent=4))
 
     def _delete_session_id(self):
         """
@@ -277,26 +293,42 @@ class OneEdgeApi:
                     "id": self.session_id
                 }
             })
-            print(json.dumps(res, indent=4))
+
+            if res is None:
+                logger.error("Received 'None' response when closing the session.")
+                return
+
+            if not res.get('success'):
+                logger.error(f"Error closing session: {res.get('errorCodes')}")
+            else:
+                return res
+
             self._delete_session_id()
         except OneEdgeApiError as e:
             error_message = str(e) if e else "Unknown error"
-            logger.exception(
-                f"An error occurred while closing the session: {error_message}")
-            raise OneEdgeApiError(
-                f"API error occurred: {error_message}") from e
+            logger.exception(f"An error occurred while closing the session: {error_message}")
+            raise OneEdgeApiError(f"API error occurred: {error_message}") from e
+
 
     async def verify_auth_state(self):
         """
         Check the authentication status.
         """
-        request = await self.run_command(
-            {
-                "command": "session.info"
-            }
-        )
-        if request["success"]:
-            self.session_id = request["params"]["id"]
-        else:
-            self.session_id = None
-            self._auth_state = AuthState.NOT_AUTHENTICATED
+        try:
+            if not self.session_id or self.session_id == "None" or self.session_id == "null":
+                self._auth_state = AuthState.NOT_AUTHENTICATED
+                return
+
+            # Request session information to verify current state
+            request = await self.run_command({"command": "session.info"})
+            if request["success"]:
+                self._auth_state = AuthState.AUTHENTICATED
+            else:
+                self.session_id = None
+                self._auth_state = AuthState.NOT_AUTHENTICATED
+
+        except OneEdgeApiError as e:
+            error_message = str(e) if e else "Unknown error"
+            logger.exception(f"An error occurred while verifying the authentication state: {error_message}")
+            raise OneEdgeApiError(f"API error occurred: {error_message}") from e
+

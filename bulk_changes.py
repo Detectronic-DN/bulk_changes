@@ -211,7 +211,7 @@ async def close_api_session(api: Any) -> None:
     """
     try:
         session: Dict[str, Dict[str, bool]] = await api.close_session()
-        if session.get("1", {}).get("success"):
+        if session.get('success'):
             logger.info("Session closed successfully.")
         else:
             logger.warning("Failed to close session properly.")
@@ -273,11 +273,10 @@ async def main() -> None:
             commands_json = await choice_to_function[choice](args.file_path)
             if commands_json:
                 results = await publish_commands(api, commands_json)
-                imei = results.get("1", {}).get("params", {}).get("thingKey")
-                if imei:
-                    logger.info(f"succussfully updated for {imei}")
+                if results.get('success'):
+                    logger.info(f"succussfully updated.")
                 else:
-                    logger.info("failed to update")
+                    logger.error("failed to update")
         except Exception as e:
             logger.error(f"An error occurred: {e}")
 
