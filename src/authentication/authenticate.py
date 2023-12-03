@@ -52,8 +52,9 @@ async def authenticate(api):
                             mfa_code = input("Enter your MFA code: ")
                         try:
                             await asyncio.sleep(2)
-                            await api.authenticate(username, mfa_code)
+                            res = await api.authenticate(username, mfa_code)
                             await asyncio.sleep(1)
+                            return res
                         except OneEdgeApiError as e:
                             logger.error(f"Authentication failed: %s", str(e))
                             continue
