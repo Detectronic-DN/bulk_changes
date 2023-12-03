@@ -109,3 +109,7 @@ htmlcov/
 
 # Node modules
 node_modules/
+
+# session Id
+src/oneEdge/session_data/*.txt
+
