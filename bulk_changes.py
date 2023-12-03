@@ -234,7 +234,10 @@ async def main() -> None:
     try:
         if not api.session_id:
             logger.info("Authenticating to telit")
-            await authenticate(api)
+            res =await authenticate(api)
+            if not res:
+                logger.error("Authentication failed")
+                return
         else:
             await api.verify_auth_state()
             logger.info("Session already authenticated")
