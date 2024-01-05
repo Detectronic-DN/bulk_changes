@@ -111,5 +111,5 @@ htmlcov/
 node_modules/
 
 # session Id
-src/oneEdge/session_data/*.txt
+*.txt
 

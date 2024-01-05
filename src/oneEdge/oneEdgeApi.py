@@ -77,6 +77,7 @@ class OneEdgeApi:
                         logger.error("Error decoding JSON from the file. The file might be corrupted.")
                         self._delete_session_id()
                         return None
+            file.close()
         return None
 
     def _write_session_id(self, session_id):
@@ -96,6 +97,7 @@ class OneEdgeApi:
                 "created_at": time.time()
             }
             file.write(json.dumps(data, indent=4))
+        file.close()
 
     def _delete_session_id(self):
         """
