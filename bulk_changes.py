@@ -5,9 +5,14 @@ from src.oneEdge.oneEdgeApi import OneEdgeApi
 from src.utils.logger import create_logger
 from src.bulk_changes.creating_commands import *
 from src.bulk_changes.reading_file import *
-from typing import List, Optional, Dict, Any, Callable
+from typing import List, Optional, Dict, Any
+
 
 logger = create_logger(__name__)
+
+config = {
+    "API_URL": "https://api-de.devicewise.com/api"
+}
 
 
 async def get_user_choice() -> str:
@@ -217,34 +222,34 @@ async def close_api_session(api: Any) -> None:
         logger.error(f"Error closing session: {e}")
 
 
-async def main() -> None:
+async def authenticate_and_verify(config, api):
     """
-    Process a file and generate commands.
+    Authenticate and verify the API session.
+
+    Args:
+        config: Configuration data needed for authentication.
+        api: API client object to authenticate and verify.
+
+    Returns:
+        bool: True if the session is authenticated and verified, False otherwise.
     """
-    parser = argparse.ArgumentParser(
-        description='Process a file and generate commands.')
-    parser.add_argument(
-        'file_path', help='The path to the file to be processed')
-    args = parser.parse_args()
+    if not api.session_id:
+        logger.info("Authenticating to telit")
+        is_authenticated = await authenticate(config, api)
+        if not is_authenticated:
+            logger.error("Authentication failed")
+            return False
+    else:
+        await api.verify_auth_state()
+        logger.info("Session already authenticated")
+    return True
 
-    API_URL: str = "https://api-de.devicewise.com/api"
-    api: OneEdgeApi = OneEdgeApi(API_URL)
-    try:
-        if not api.session_id:
-            logger.info("Authenticating to telit")
-            res = await authenticate(api)
-            if not res:
-                logger.error("Authentication failed")
-                return
-        else:
-            await api.verify_auth_state()
-            logger.info("Session already authenticated")
-        logger.info("Connected!")
-    except OneEdgeApiError as error:
-        logger.error("An error occurred during authentication: %s", str(error))
-        return
 
-    choice_to_function: Dict[str, Callable[[str], Optional[Dict[str, str]]]] = {
+async def process_user_choice(choice, file_path, api):
+    """
+    Process user choice and execute corresponding function.
+    """
+    choice_to_function = {
         '1': add_tags,
         '2': change_device_profile,
         '3': change_thing_def,
@@ -253,35 +258,59 @@ async def main() -> None:
         '6': remove_tags,
     }
 
-    while True:
-        try:
-            choice = await asyncio.wait_for(get_user_choice(), timeout=10)
-        except asyncio.TimeoutError:
-            logger.info("No input received. Exiting the program.")
-            await close_api_session(api)
-            break
+    if choice not in choice_to_function:
+        logger.warning("Invalid choice. Please enter a valid number.")
+        return
 
-        if choice == 'q':
-            logger.info("Closing the session and exiting the program.")
-            await close_api_session(api)
-            break
+    try:
+        commands_json = await choice_to_function[choice](file_path)
+        if commands_json:
+            results = await publish_commands(api, commands_json)
+            if results.get('success'):
+                logger.info("Successfully updated.")
+            else:
+                logger.error("Failed to update")
+    except Exception as e:
+        logger.error(f"An error occurred: {e}")
 
-        if choice not in choice_to_function:
-            logger.warning("Invalid choice. Please enter a valid number.")
-            continue
 
-        try:
-            commands_json = await choice_to_function[choice](args.file_path)
-            if commands_json:
-                results = await publish_commands(api, commands_json)
-                if results.get('success'):
-                    logger.info(f"succussfully updated.")
-                else:
-                    logger.error("failed to update")
-        except Exception as e:
-            logger.error(f"An error occurred: {e}")
+async def main() -> None:
+    """
+    Process a file and generate commands based on user choices.
+    """
+    parser = argparse.ArgumentParser(
+        description='Process a file and generate commands.')
+    parser.add_argument(
+        'file_path', help='The path to the file to be processed')
+    args = parser.parse_args()
 
-    await asyncio.sleep(5)
+    if not config["API_URL"]:
+        logger.error("API_URL environment variable is not set.")
+        return
+
+    api = OneEdgeApi(config["API_URL"])
+
+    if not await authenticate_and_verify(config, api):
+        return
+
+    logger.info("Connected!")
+
+    try:
+        while True:
+            try:
+                choice = await asyncio.wait_for(get_user_choice(), timeout=10)
+            except asyncio.TimeoutError:
+                logger.info("No input received. Exiting the program.")
+                break
+
+            if choice == 'q':
+                logger.info("Closing the session and exiting the program.")
+                break
+
+            await process_user_choice(choice, args.file_path, api)
+    finally:
+        await close_api_session(api)
+        await asyncio.sleep(5)
 
 if __name__ == "__main__":
     asyncio.run(main())
