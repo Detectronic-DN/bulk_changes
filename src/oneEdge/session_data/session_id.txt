@@ -1,4 +1,0 @@
-{
-    "session_id": "9de1c615bcb5c4c7ef0215e4a5f22fbc",
-    "created_at": 1704456692.2431552
-}
