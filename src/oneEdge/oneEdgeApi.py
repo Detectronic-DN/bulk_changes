@@ -10,6 +10,7 @@ import time
 import aiohttp
 import asyncio
 from src.utils.logger import create_logger
+from cachetools import TTLCache
 
 logger = create_logger(__name__)
 
@@ -41,85 +42,20 @@ class OneEdgeApi:
         Initializes a new instance of the class.
         """
         self.endpoint_url = endpoint_url
-        self._session_id = self._read_session_id()
+        self._session_cache = TTLCache(maxsize=1, ttl=28800)
         self._last_error = None
         self._auth_state = AuthState.NOT_AUTHENTICATED
 
-    def _session_file_path(self):
-        """
-        Returns the file path of the session file.
-        """
-        dir_path = os.path.dirname(os.path.realpath(__file__))
-        folder_path = os.path.join(dir_path, self.FOLDER_NAME)
-        if not os.path.exists(folder_path):
-            os.makedirs(folder_path)
-        return os.path.join(folder_path, self.FILE_NAME)
-
-    def _read_session_id(self):
-        """
-        Reads the session ID from the session file.
-
-        Returns:
-            str: The session ID read from the file, or None if the file does not exist or is invalid.
-        """
-        file_path = self._session_file_path()
-        if os.path.exists(file_path):
-            with open(file_path, 'r', encoding='utf-8') as file:
-                file_content = file.read()
-                if file_content:
-                    try:
-                        data = json.loads(file_content)
-                        if time.time() - data["created_at"] > 28800:
-                            self._delete_session_id()
-                            return None
-                        return data["session_id"]
-                    except json.JSONDecodeError:
-                        logger.error("Error decoding JSON from the file. The file might be corrupted.")
-                        self._delete_session_id()
-                        return None
-            file.close()
-        return None
-
-    def _write_session_id(self, session_id):
-        """
-        Writes the given session ID to the session file.
-
-        Args:
-            session_id (str): The session ID to be written to the file.
-
-        Returns:
-            None
-        """
-        file_path = self._session_file_path()
-        with open(file_path, 'w', encoding='utf-8') as file:
-            data = {
-                "session_id": session_id,
-                "created_at": time.time()
-            }
-            file.write(json.dumps(data, indent=4))
-        file.close()
-
-    def _delete_session_id(self):
-        """
-        Delete the session file.
-        """
-        file_path = self._session_file_path()
-        if os.path.exists(file_path):
-            os.remove(file_path)
-        self.session_id = None
-        self._auth_state = AuthState.NOT_AUTHENTICATED
-        self.last_error = None
 
     @property
     def session_id(self):
         """Gets the session id"""
-        return self._session_id
+        return self._session_cache.get('session_id')
 
     @session_id.setter
     def session_id(self, value):
         """Sets the session id"""
-        self._session_id = value
-        self._write_session_id(value)
+        self._session_cache['session_id'] = value
         self._auth_state = self._calculate_auth_state()
 
     @property
