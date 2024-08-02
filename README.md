@@ -1,30 +1,5 @@
 # Bulk Changes CLI Tool
 
-## Table of Contents
-
-1. [Introduction](#introduction)
-2. [Installation](#installation)
-3. [Usage](#usage)
-4. [Commands](#commands)
-
-   4.1. [Add Settings](#add-settings)
-
-   4.2. [Apply Device Profile](#apply-device-profile)
-
-   4.3. [Add Tags](#add-tags)
-
-   4.4. [Change Thing Definition](#change-thing-definition)
-
-   4.5. [Undeploy Devices](#undeploy-devices)
-
-   4.6. [Delete Tags](#delete-tags)
-
-   4.7. [Delete Things by Tags](#delete-things-by-tags)
-
-   4.8. [Delete Things by Keys](#delete-things-by-keys)
-
-5. [Configuration](#configuration)
-
 ## 1. Introduction <a name="introduction"></a>
 
 The Device Management CLI Tool is a command-line interface designed for managing devices. It allows users to perform various operations on devices via OneEdge API. It supports various operations, including device settings configuration, profile application, and tag management. The tool is implemented in Python and uses asynchronous programming to enhance performance.
@@ -209,7 +184,7 @@ python bulk_changes.py delete-things-keys <file_path>
 
 ## 5. Configuration <a name="configuration"></a>
 
-The tool requires certain environment variables, which should be set in a `.env.dev` file located in the `config/` directory. These variables include:
+The tool requires certain environment variables, which should be set in a `.env` file located in the `config/` directory. These variables include:
 
 - `API_URL`: URL of the OneEdge API.
 - `TELIT_USERNAME`: Username for OneEdge API authentication.
