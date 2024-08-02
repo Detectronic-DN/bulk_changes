@@ -21,4 +21,4 @@ aiohappyeyeballs
 six
 bcrypt
 pycparser
-pytest
+pytest-asyncio
