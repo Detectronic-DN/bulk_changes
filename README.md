@@ -186,7 +186,7 @@ python bulk_changes.py delete-things-keys <file_path>
 
 The tool requires certain environment variables, which should be set in a `.env` file located in the `config/` directory. These variables include:
 
-- `API_URL`: URL of the OneEdge API. 
+- `API_URL`: URL of the OneEdge API.
 - `TELIT_USERNAME`: Username for OneEdge API authentication.
 - `TELIT_PASSWORD`: Password for OneEdge API authentication.
 - `DNS_SUFFIX`: DNS suffix for VPN connection verification.
