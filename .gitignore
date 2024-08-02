@@ -1,8 +1,6 @@
 __pycache__/
 .pytest_cache/
 
-#config file
-config
 
 #env
 .bulk/
