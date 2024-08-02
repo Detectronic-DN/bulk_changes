@@ -106,7 +106,6 @@ def execute_sql_query(
         param_string = ','.join(f"{p}" for p in params)
         formatted_query = sql_query.format(param_string)
         command: str = f"sqlite3 {db_path} \"{formatted_query}\""
-        logger.info(f"the command is {command}")
         stdin, stdout, stderr = ssh_client.exec_command(command)
         result: str = stdout.read().decode()
         error: str = stderr.read().decode()
