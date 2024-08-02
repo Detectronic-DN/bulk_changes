@@ -1,7 +1,7 @@
 import os
 import pandas as pd
 import pytest
-from typing import List, Tuple
+from typing import List
 
 from src.bulk_changes.get_data import (
     read_imei_and_setting,
