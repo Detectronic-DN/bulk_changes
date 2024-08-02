@@ -22,7 +22,7 @@ async def read_file(file_path: str) -> pd.DataFrame:
     :raises pd.errors.EmptyDataError: If the file is empty.
     """
     if file_path.lower().endswith(".xlsx"):
-        return await asyncio.__all__.to_thread(pd.read_excel, file_path, header=None)
+        return await asyncio.to_thread(pd.read_excel, file_path, header=None)
     elif file_path.lower().endswith(".csv"):
         async with aiofiles.open(file_path, mode="r") as f:
             content = await f.read()
