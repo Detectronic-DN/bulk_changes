@@ -1,10 +1,35 @@
-# OneEdge Bulk Changes CLI
+# Bulk Changes CLI Tool
 
-## Description
+## Table of Contents
 
-This Command-Line Interface (CLI) application facilitates bulk changes for OneEdge devices. It provides options for various operations such as adding tags to IMEIs, changing device profiles, updating Thing_defs, adjusting attribute settings, and undeploying or changing data destinations for loggers.
+1. [Introduction](#introduction)
+2. [Installation](#installation)
+3. [Usage](#usage)
+4. [Commands](#commands)
 
-## Installation
+   4.1. [Add Settings](#add-settings)
+
+   4.2. [Apply Device Profile](#apply-device-profile)
+
+   4.3. [Add Tags](#add-tags)
+
+   4.4. [Change Thing Definition](#change-thing-definition)
+
+   4.5. [Undeploy Devices](#undeploy-devices)
+
+   4.6. [Delete Tags](#delete-tags)
+
+   4.7. [Delete Things by Tags](#delete-things-by-tags)
+
+   4.8. [Delete Things by Keys](#delete-things-by-keys)
+
+5. [Configuration](#configuration)
+
+## 1. Introduction <a name="introduction"></a>
+
+The Device Management CLI Tool is a command-line interface designed for managing devices. It allows users to perform various operations on devices via OneEdge API. It supports various operations, including device settings configuration, profile application, and tag management. The tool is implemented in Python and uses asynchronous programming to enhance performance.
+
+## 2. Installation <a name="installation"></a>
 
 Before running the application, ensure that you have Python installed on your system. This application requires Python 3.6 or later.
 
@@ -22,108 +47,175 @@ If you encounter an error stating that pip is not recognized as an internal or e
 py -m pip install --user -r requirements.txt
 ```
 
-## Usage
+## 3. Usage <a name="usage"></a>
 
-To use the application, follow these steps:
+To use the CLI tool, execute the `bulk_changes.py` script with the appropriate command and arguments. The general syntax is:
 
-1. **Running the Application**
+```sh
+python bulk_changes.py <command> [arguments]
+```
 
-   Run the main script from the command line:
+## 4. Commands <a name="commands"></a>
 
-   ```bash
-   python builk_changes.py [path-to-your-file]
-   ```
+### 4.1. Add Settings <a name="add-settings"></a>
 
-   Replace `[path-to-your-file]` with the path to the CSV or Excel file containing the IMEIs and other relevant data.
+Add or update settings for multiple devices.
 
-2. **Interactive Menu**
+**Usage:**
 
-   After running the script, you'll be presented with an interactive menu:
+```sh
+python bulk_changes.py add-settings <file_path>
+```
 
-   ```
-   Welcome to OneEdge Bulk Changes!
-   1. Adding tags to a list of IMEIs
-   2. Change device profile to IMEIs
-   3. Change Thing_def to IMEIs
-   4. Add attributes settings to all IMEIs
-   5. Undeploy or change data destination for removed loggers
-   q. Quit
-   ```
+- `<file_path>`: Path to a CSV or Excel file containing IMEI numbers and their corresponding settings.
 
-   Enter the number corresponding to the task you want to perform.
+**Process:**
 
-3. **Follow Prompts**
+1. Read IMEI numbers and settings from the specified file.
+2. Generate commands to update device settings.
+3. Execute commands via the OneEdge API.
 
-   Each option will prompt you for additional information. Enter the required details as requested.
+### 4.2. Apply Device Profile <a name="apply-device-profile"></a>
 
-4. **View Results**
+Apply a specified device profile to multiple devices.
 
-   After executing an option, the results or status of the operation will be displayed on the terminal.
-  
-# **Undeploy**
+**Usage:**
 
-## **Description**
+```sh
+python bulk_changes.py apply-profile <file_path> <profile_id>
+```
 
-This project is composed of Python scripts designed to interact with the OneEdge API. It reads a file containing IMEI numbers, generates commands from those numbers, and sends the commands to the OneEdge API.
+- `<file_path>`: Path to a CSV or Excel file containing IMEI numbers.
+- `<profile_id>`: ID of the profile to apply.
 
-## Connecting to the Remote Server
+**Process:**
 
-  
-**SSH Connection**: Open a terminal and connect to the remote server using SSH by executing the following command:
+1. Read IMEI numbers from the file.
+2. Generate commands to apply the profile to each device.
+3. Execute commands via the OneEdge API.
 
-   ```
-   ssh user@192.168.52.233
-   ```
+### 4.3. Add Tags <a name="add-tags"></a>
 
-  
+Add specified tags to multiple devices.
 
-**Change Directory**: Once connected, navigate to the appropriate directory using the following command:
+**Usage:**
 
-   ```
-   cd workspace/diditwork/testdata
-   ```
+```sh
+python bulk_changes.py add-tags <file_path> <tag1> <tag2> ...
+```
 
-## Interacting with the SQL Database
+- `<file_path>`: Path to a CSV or Excel file containing IMEI numbers.
+- `<tag1> <tag2> ...`: Tags to be added to the devices.
 
+**Process:**
 
-**Connect to SQLite Database**: Connect to the SQLite database by executing the following command:
+1. Read IMEI numbers from the file.
+2. Generate commands to add the specified tags.
+3. Execute commands via the OneEdge API.
 
-   ```
+### 4.4. Change Thing Definition <a name="change-thing-definition"></a>
 
-   sqlite3 database.db
+Change the thing definition for multiple devices.
 
-   ```
+**Usage:**
 
-  
+```sh
+python bulk_changes.py change-def <file_path> <thing_key>
+```
 
-**Test IMEI**: Test the IMEI numbers from the extracted list using a SELECT statement. Replace `[imei_list]` with the actual list of IMEI numbers:
+- `<file_path>`: Path to a CSV or Excel file containing IMEI numbers.
+- `<thing_key>`: New thing definition key to apply.
 
-   ```
+**Process:**
 
-   SELECT * FROM deployment_queue WHERE imei IN ([imei_list]);
+1. Read IMEI numbers from the file.
+2. Generate commands to change the thing definition.
+3. Execute commands via the OneEdge API.
 
-   ```
+### 4.5. Undeploy Devices <a name="undeploy-devices"></a>
 
-  
+Undeploy multiple devices.
 
-Run the jupyter notebook file to get the full command
+**Usage:**
 
-  
+```sh
+python bulk_changes.py undeploy <file_path>
+```
 
-**Delete Data**: If necessary, delete the data associated with the IMEI numbers from the database using the following command:
+- `<file_path>`: Path to a CSV or Excel file containing IMEI numbers.
 
-   ```
+**Process:**
 
-   DELETE FROM deployment_queue WHERE imei IN ([imei_list]);
+1. Read IMEI numbers from the file.
+2. Verify VPN connection status.
+3. Establish SSH connection to the server.
+4. Execute SQL queries to remove devices from the database.
+5. Generate commands to undeploy devices in OneEdge.
+6. Execute commands via the OneEdge API.
 
-   ```
+### 4.6. Delete Tags <a name="delete-tags"></a>
 
-Run the jupyter notebook file to get the full command
+Remove specified tags from multiple devices.
 
-  
+**Usage:**
 
-Please note that this document assumes familiarity with SSH, SQL. It's important to carefully execute each step and replace placeholders such as `[imei_list]` with actual data.
+```sh
+python bulk_changes.py delete-tags <file_path> <tag1> <tag2> ...
+```
 
-  
+- `<file_path>`: Path to a CSV or Excel file containing IMEI numbers.
+- `<tag1> <tag2> ...`: Tags to be removed.
 
-*Disclaimer: Ensure you have the necessary permissions and backups before making any modifications to the data or database.*
+**Process:**
+
+1. Read IMEI numbers from the file.
+2. Generate commands to remove the specified tags.
+3. Execute commands via the OneEdge API.
+
+### 4.7. Delete Things by Tags <a name="delete-things-by-tags"></a>
+
+Delete things (devices) based on specified tags.
+
+**Usage:**
+
+```sh
+python bulk_changes.py delete-things-tags <tag1> <tag2> ...
+```
+
+- `<tag1> <tag2> ...`: Tags identifying the things to delete.
+
+**Process:**
+
+1. Generate command to delete things based on the tags.
+2. Execute command via the OneEdge API.
+
+### 4.8. Delete Things by Keys <a name="delete-things-by-keys"></a>
+
+Delete things (devices) based on their keys (IMEI numbers).
+
+**Usage:**
+
+```sh
+python bulk_changes.py delete-things-keys <file_path>
+```
+
+- `<file_path>`: Path to a CSV or Excel file containing IMEI numbers.
+
+**Process:**
+
+1. Read IMEI numbers from the file.
+2. Generate commands to delete things based on the keys.
+3. Execute commands via the OneEdge API.
+
+## 5. Configuration <a name="configuration"></a>
+
+The tool requires certain environment variables, which should be set in a `.env.dev` file located in the `config/` directory. These variables include:
+
+- `API_URL`: URL of the OneEdge API.
+- `TELIT_USERNAME`: Username for OneEdge API authentication.
+- `TELIT_PASSWORD`: Password for OneEdge API authentication.
+- `DNS_SUFFIX`: DNS suffix for VPN connection verification.
+- `SSH_HOSTNAME`: Hostname for SSH connections.
+- `SSH_USERNAME`: Username for SSH connections.
+- `SQLITE3_DBPATH`: Path to the SQLite database on the remote server.
+- `SQLITE3_TABLE`: Name of the table in the SQLite database.

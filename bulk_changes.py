@@ -1,316 +1,405 @@
+import os
 import argparse
 import asyncio
-from src.authentication.authenticate import authenticate
-from src.oneEdge.oneEdgeApi import OneEdgeApi
-from src.utils.logger import create_logger
-from src.bulk_changes.creating_commands import *
-from src.bulk_changes.reading_file import *
-from typing import List, Optional, Dict, Any
+from typing import Dict, Any, Optional, List
+from dotenv import load_dotenv
 
+from src.bulk_changes.create_commands import (
+    create_command_delete_things,
+    create_commands_tags,
+    create_commands_settings,
+    create_commands_undeploy,
+    create_commands_thing_def,
+    create_commands_device_profile,
+    create_commands_delete_tag,
+)
+from src.bulk_changes.get_data import read_imei_and_setting, read_imei_only
+from src.logger.logger import Logger
+from src.OneEdge.OneEdgeAPI import OneEdgeApi, OneEdgeApiError
+from src.bulk_changes.undeploy_process import undeploy_process
 
-logger = create_logger(__name__)
-
-config = {
-    "API_URL": "https://api-de.devicewise.com/api"
-}
-
-
-async def get_user_choice() -> str:
-    """
-    Prompts the user to choose an option and returns the choice as a string.
-
-    Returns:
-        str: The user's choice.
-    """
-    print("\nPlease choose an option:")
-    options: List[str] = [
-        "1. Adding tags to a list of IMEIs",
-        "2. Change device profile to IMEIs",
-        "3. Change Thing_def to IMEIs",
-        "4. Add attributes settings to all IMEIs",
-        "5. Undeploy or change data destination for removed loggers",
-        "q. Quit"
-    ]
-    for option in options:
-        print(option)
-    choice: str = input("Enter your choice: ")
-    return choice
-
-
-async def add_tags(file_path: str) -> Optional[str]:
-    """
-    Adds tags to a file.
-
-    Args:
-        file_path (str): The path to the file.
-
-    Returns:
-        Optional[str]: The commands in JSON format, or None if there was an error.
-    """
-    tag_names_input = input("Enter the tag names separated by commas: ")
-    tag_names = [tag.strip() for tag in tag_names_input.split(',')]
-
-    try:
-        print("Reading the file...")
-        imeis = read_imeis(file_path)
-        print("Creating commands...")
-        commands_json = await create_commands_tags(imeis, tag_names)
-        return commands_json
-    except Exception as e:
-        logger.error(f"Error processing option 1: {e}")
-        return None
-
-
-async def change_device_profile(file_path: str) -> Optional[Dict[str, str]]:
-    """Change the device profile.
-
-    Args:
-        file_path (str): The path to the file containing the IMEIs.
-
-    Returns:
-        dict: The commands JSON if successful, None otherwise.
-    """
-    profiles: Dict[str, str] = get_profile_id()
-    profile_name: str = input("Enter the profile name: ")
-    profile_id: Optional[str] = profiles.get(profile_name)
-
-    if not profile_id:
-        print("Error: Profile name not found.")
-        return None
-    try:
-        print("Reading the file...")
-        imeis = read_imeis(file_path)
-        print("Creating commands...")
-        commands_json = await create_commands_device_profile(imeis, profile_id)
-        return commands_json
-    except Exception as e:
-        logger.error(f"Error processing option 2: {e}")
-        return None
-
-
-async def change_thing_def(file_path: str) -> Optional[Dict[str, str]]:
-    """
-    Change the thing definition based on the given file path.
-
-    Args:
-        file_path (str): The path to the file containing the IMEIs.
-
-    Returns:
-        Optional[Dict[str, str]]: The commands JSON if successful, None otherwise.
-    """
-    thing_defs: Dict[str, str] = get_thing_def_key()
-    thing_name: str = input("Enter the thing name: ")
-    thing_def_key: Optional[str] = thing_defs.get(thing_name)
-
-    if thing_def_key:
-        try:
-            print("Reading the file...")
-            imeis = read_imeis(file_path)
-            print("Creating commands...")
-            commands_json = await create_commands_device_profile(imeis, thing_def_key)
-            return commands_json
-        except Exception as e:
-            logger.error(f"Error processing option 3: {e}")
-    else:
-        print("Error: Thing name not found.")
-    return None
+logger = Logger(__name__)
+load_dotenv("config/.env")
 
 
 async def add_settings(file_path: str) -> Optional[Dict[str, Any]]:
     """
-    Reads the file at the given path and creates commands based on the IMEIs and settings.
+    Reads IMEI numbers and settings from a file and creates commands to update settings.
 
-    Args:
-        file_path (str): The path of the file to read.
-
-    Returns:
-        Optional[Dict[str, Any]]: The commands as a JSON object, or None if there was an error.
-    """
-    try:
-        print("Reading the file...")
-        imeis, settings = read_imei_and_setting(file_path)
-        print("Creating commands...")
-        commands_json = await create_commands_settings(imeis, settings)
-        return commands_json
-    except Exception as e:
-        logger.error(f"Error processing option 4: {e}")
-        return None
-
-
-async def undeploy(file_path: str) -> Optional[str]:
-    """
-    Read the file at the given `file_path` and create undeploy commands
-    based on the IMEIs found in the file.
-
-    Args:
-        file_path: The path to the file containing the IMEIs.
-
-    Returns:
-        A JSON string containing the undeploy commands, or None if there
-        was an error processing the file.
+    :param file_path: Path to the input file containing IMEI numbers and settings.
+    :return: A dictionary containing the created commands, or None if an error occurs.
     """
     try:
         logger.info("Reading the file...")
-        imeis = read_imeis(file_path)
+        ids, settings = await read_imei_and_setting(file_path)
+        logger.info(f"Read {len(ids)} devices from the file.")
         logger.info("Creating commands...")
-        commands_json = await create_commands_undeploy(imeis)
+        commands_json = await create_commands_settings(ids, settings)
+        logger.info(f"Created commands for {len(commands_json)} devices.")
         return commands_json
     except Exception as e:
-        logger.error(f"Error processing option 5: {e}")
+        logger.error(f"Error processing add settings: {e}")
         return None
 
 
-async def remove_tags(file_path: str) -> Optional[List[str]]:
+async def apply_device_profile(
+    file_path: str, profile_id: str
+) -> Optional[Dict[str, Any]]:
     """
-    Remove tags from a file.
+    Reads IMEI numbers from a file and creates commands to apply a device profile.
 
-    Args:
-        file_path (str): The path to the file.
-
-    Returns:
-        List[str]: The commands in JSON format to remove the tags, or None if there was an error.
+    :param file_path: Path to the input file containing IMEI numbers.
+    :param profile_id: The ID of the profile to apply.
+    :return: A dictionary containing the created commands, or None if an error occurs.
     """
     try:
-        tag_names_input = input("Enter the tag names separated by commas: ")
-        tag_names = [tag.strip() for tag in tag_names_input.split(',')]
         logger.info("Reading the file...")
-        imeis = read_imeis(file_path)
+        ids = await read_imei_only(file_path)
+        logger.info(f"Read {len(ids)} devices from the file.")
         logger.info("Creating commands...")
-        commands_json = await create_commands_delete_tag(imeis, tag_names)
+        commands_json = await create_commands_device_profile(ids, profile_id)
+        logger.info(f"Created commands for {len(commands_json)} devices.")
         return commands_json
     except Exception as e:
-        logger.error(f"Error processing option 6: {e}")
+        logger.error(f"Error processing apply device profile: {e}")
         return None
 
 
-async def publish_commands(api: OneEdgeApi, commands_json: Dict[str, Any]) -> None:
+async def add_tags(file_path: str, tags: List[str]) -> Optional[Dict[str, Any]]:
     """
-    Publishes commands using the OneEdge API.
+    Reads IMEI numbers from a file and creates commands to add tags to devices.
 
-    Args:
-        api (OneEdgeApi): The authenticated API object.
-        commands_json (Dict[str, Any]): A dictionary representing the commands to be published.
-
-    Returns:
-        None
+    :param file_path: Path to the input file containing IMEI numbers.
+    :param tags: List of tags to add to the devices.
+    :return: A dictionary containing the created commands, or None if an error occurs.
     """
     try:
-        print("Publishing commands...")
-        results: Dict[str, Any] = await api.run_commands(commands_json)
+        logger.info("Reading the file...")
+        ids = await read_imei_only(file_path)
+        logger.info(f"Read {len(ids)} devices from the file.")
+        logger.info("Creating commands...")
+        commands_json = await create_commands_tags(ids, tags)
+        logger.info(f"Created commands for {len(commands_json)} devices.")
+        return commands_json
+    except Exception as e:
+        logger.error(f"Error processing add tags: {e}")
+        return None
+
+
+async def change_thing_definition(
+    file_path: str, thing_key: str
+) -> Optional[Dict[str, Any]]:
+    """
+    Reads IMEI numbers from a file and creates commands to change the thing definition.
+
+    :param file_path: Path to the input file containing IMEI numbers.
+    :param thing_key: The new thing definition key to apply.
+    :return: A dictionary containing the created commands, or None if an error occurs.
+    """
+    try:
+        logger.info("Reading the file...")
+        ids = await read_imei_only(file_path)
+        logger.info(f"Read {len(ids)} devices from the file.")
+        logger.info("Creating commands...")
+        commands_json = await create_commands_thing_def(ids, thing_key)
+        logger.info(f"Created commands for {len(commands_json)} devices.")
+        return commands_json
+    except Exception as e:
+        logger.error(f"Error processing change thing definition: {e}")
+        return None
+
+
+async def undeploy_devices(file_path: str) -> Optional[Dict[str, Any]]:
+    """
+    Reads IMEI numbers from a file, undeploy devices, and creates commands to undeploy devices in OneEdge.
+
+    :param file_path: Path to the input file containing IMEI numbers.
+    :return: A dictionary containing the created commands, or None if an error occurs.
+    """
+    try:
+        logger.info("Reading the file...")
+        ids = await read_imei_only(file_path)
+        logger.info(f"Read {len(ids)} devices from the file.")
+
+        # Perform the undeploy process
+        logger.info("Starting undeploy process...")
+        undeploy_process(ids)
+        logger.info("Undeploy process completed.")
+
+        logger.info("Creating OneEdge undeploy commands...")
+        commands_json = await create_commands_undeploy(ids)
+        logger.info(f"Created commands for {len(commands_json)} devices.")
+        return commands_json
+    except Exception as e:
+        logger.error(f"Error processing undeploy devices: {e}")
+        return None
+
+
+async def delete_tags(file_path: str, tags: List[str]) -> Optional[Dict[str, Any]]:
+    """
+    Reads IMEI numbers from a file and creates commands to delete tags from devices.
+
+    :param file_path: Path to the input file containing IMEI numbers.
+    :param tags: List of tags to delete from the devices.
+    :return: A dictionary containing the created commands, or None if an error occurs.
+    """
+    try:
+        logger.info("Reading the file...")
+        ids = await read_imei_only(file_path)
+        logger.info(f"Read {len(ids)} devices from the file.")
+        logger.info("Creating commands...")
+        commands_json = await create_commands_delete_tag(ids, tags)
+        logger.info(f"Created commands for {len(commands_json)} devices.")
+        return commands_json
+    except Exception as e:
+        logger.error(f"Error processing delete tags: {e}")
+        return None
+
+
+async def delete_things_by_tags(tags: List[str]) -> Optional[Dict[str, Any]]:
+    """
+    Creates commands to delete things based on tags.
+
+    :param tags: List of tags. Things with all these tags will be deleted.
+    :return: A dictionary containing the created commands, or None if an error occurs.
+    """
+    try:
+        logger.info("Creating commands to delete things based on tags...")
+        commands_json = await create_command_delete_things(tags=tags)
+        logger.info(f"Created commands for deleting things with tags: {tags}.")
+        return commands_json
+    except Exception as e:
+        logger.error(f"Error processing delete things by tags: {e}")
+        return None
+
+
+async def delete_things_by_keys(file_path: str) -> Optional[Dict[str, Any]]:
+    """
+    Reads IMEI numbers from a file and creates commands to delete things by their keys.
+
+    :param file_path: Path to the input file containing IMEI numbers.
+    :return: A dictionary containing the created commands, or None if an error occurs.
+
+    """
+    try:
+        logger.info("Reading the file...")
+        ids = await read_imei_only(file_path)
+        logger.info(f"Read {len(ids)} devices from the file.")
+        logger.info("Creating commands...")
+        commands_json = await create_command_delete_things(thing_keys=ids)
+        logger.info(f"Created commands for {len(commands_json)} devices.")
+        return commands_json
+    except Exception as e:
+        logger.error(f"Error processing delete things by keys: {e}")
+        return None
+
+
+async def process_commands(api: OneEdgeApi, commands: Dict[str, Any]) -> Dict[str, Any]:
+    """
+    Processes the given commands by publishing them to the OneEdge API.
+
+    :param api: An authenticated instance of OneEdgeApi.
+    :param commands: A dictionary containing the commands to be processed.
+    :return: A dictionary containing the results of the command execution.
+    :raises OneEdgeApiError: If there is an error in publishing the commands.
+    """
+    try:
+        logger.info("Publishing commands...")
+        results: Dict[str, Any] = await api.run_commands(commands)
+        logger.info("Command execution successful.")
         return results
-    except Exception as e:
+    except OneEdgeApiError as e:
         logger.error(f"Error publishing commands: {e}")
+        raise
+
+
+async def authenticate_user() -> OneEdgeApi:
+    """
+    Authenticates the user with the OneEdge API using environment variables for credentials.
+
+    :return: An instance of OneEdgeApi with the user authenticated.
+    :raises OneEdgeApiError: If authentication fails.
+    """
+    try:
+        api = OneEdgeApi(os.getenv("API_URL"))
+
+        await api.authenticate_user(
+            username=os.getenv("TELIT_USERNAME"), password=os.getenv("TELIT_PASSWORD")
+        )
+
+        logger.info("User authenticated successfully.")
+        return api
+
+    except OneEdgeApiError as e:
+        logger.error(f"Authentication failed: {e}")
+        raise
 
 
 async def close_api_session(api: Any) -> None:
     """
-    Close the API session.
+    Closes the API session.
 
-    Args:
-        api (Any): The API object.
+    :param api: The API object.
+    :raises Exception: If there is an error closing the session.
 
-    Raises:
-        Exception: If there is an error closing the session.
+    Example:
+        await close_api_session(api)
     """
     try:
         session: Dict[str, Dict[str, bool]] = await api.close_session()
-        if session.get('success'):
+        if session.get("success", False):
             logger.info("Session closed successfully.")
         else:
             logger.warning("Failed to close session properly.")
     except Exception as e:
         logger.error(f"Error closing session: {e}")
+        raise
 
 
-async def authenticate_and_verify(config, api):
+async def execute_command(
+    command_func: callable, *args, **kwargs
+) -> Optional[Dict[str, Any]]:
     """
-    Authenticate and verify the API session.
+    Executes the provided command function with the given arguments and handles the session.
 
-    Args:
-        config: Configuration data needed for authentication.
-        api: API client object to authenticate and verify.
-
-    Returns:
-        bool: True if the session is authenticated and verified, False otherwise.
+    :param command_func: The function to execute.
+    :param args: Arguments to pass to the function.
+    :param kwargs: Keyword arguments to pass to the function.
+    :return: The result of the command function or None if an error occurs.
     """
-    if not api.session_id:
-        logger.info("Authenticating to telit")
-        is_authenticated = await authenticate(config, api)
-        if not is_authenticated:
-            logger.error("Authentication failed")
-            return False
-    else:
-        await api.verify_auth_state()
-        logger.info("Session already authenticated")
-    return True
+    api = None
+    try:
+        api = await authenticate_user()
+        commands = await command_func(*args, **kwargs)
+        if commands:
+            logger.info("Command execution successful, publishing commands...")
+            result = await process_commands(api, commands)
+            logger.info("Commands published successfully.")
+            return result
+        else:
+            logger.error("Command execution returned no result.")
+            return None
+    except Exception as e:
+        logger.error(f"An error occurred: {e}")
+        return None
+    finally:
+        if api:
+            await close_api_session(api)
 
 
-async def process_user_choice(choice, file_path, api):
+async def main():
     """
-    Process user choice and execute corresponding function.
-    """
-    choice_to_function = {
-        '1': add_tags,
-        '2': change_device_profile,
-        '3': change_thing_def,
-        '4': add_settings,
-        '5': undeploy,
-        '6': remove_tags,
-    }
+    Parses command line arguments and executes the corresponding command function.
 
-    if choice not in choice_to_function:
-        logger.warning("Invalid choice. Please enter a valid number.")
-        return
+    :return: None
+    """
+    parser = argparse.ArgumentParser(
+        description="Command Line Tool for Device Management"
+    )
+
+    subparsers = parser.add_subparsers(dest="command", help="Available commands")
+
+    # Add Settings Command
+    parser_add_settings = subparsers.add_parser(
+        "add-settings", help="Add settings to devices"
+    )
+    parser_add_settings.add_argument(
+        "file_path",
+        type=str,
+        help="Path to the file containing IMEI numbers and settings",
+    )
+
+    # Apply Device Profile Command
+    parser_apply_profile = subparsers.add_parser(
+        "apply-profile", help="Apply a profile to devices"
+    )
+    parser_apply_profile.add_argument(
+        "file_path", type=str, help="Path to the file containing IMEI numbers"
+    )
+    parser_apply_profile.add_argument(
+        "profile_id", type=str, help="Profile ID to apply"
+    )
+
+    # Add Tags Command
+    parser_add_tags = subparsers.add_parser("add-tags", help="Add tags to devices")
+    parser_add_tags.add_argument(
+        "file_path", type=str, help="Path to the file containing IMEI numbers"
+    )
+    parser_add_tags.add_argument(
+        "tags", type=str, nargs="+", help="List of tags to add"
+    )
+
+    # Change Thing Definition Command
+    parser_change_def = subparsers.add_parser(
+        "change-def", help="Change thing definition of devices"
+    )
+    parser_change_def.add_argument(
+        "file_path", type=str, help="Path to the file containing IMEI numbers"
+    )
+    parser_change_def.add_argument(
+        "thing_key", type=str, help="New thing definition key"
+    )
+
+    # Undeploy Devices Command
+    parser_undeploy = subparsers.add_parser("undeploy", help="Undeploy devices")
+    parser_undeploy.add_argument(
+        "file_path", type=str, help="Path to the file containing IMEI numbers"
+    )
+
+    # Delete Tags Command
+    parser_delete_tags = subparsers.add_parser(
+        "delete-tags", help="Delete tags from devices"
+    )
+    parser_delete_tags.add_argument(
+        "file_path", type=str, help="Path to the file containing IMEI numbers"
+    )
+    parser_delete_tags.add_argument(
+        "tags", type=str, nargs="+", help="List of tags to delete"
+    )
+
+    # Delete Things by Tags Command
+    parser_delete_things_tags = subparsers.add_parser(
+        "delete-things-tags", help="Delete things by tags"
+    )
+    parser_delete_things_tags.add_argument(
+        "tags", type=str, nargs="+", help="List of tags to identify things for deletion"
+    )
+
+    # Delete Things by Keys Command
+    parser_delete_things_keys = subparsers.add_parser(
+        "delete-things-keys", help="Delete things by their keys"
+    )
+    parser_delete_things_keys.add_argument(
+        "file_path", type=str, help="Path to the file containing IMEI numbers"
+    )
+
+    args = parser.parse_args()
 
     try:
-        commands_json = await choice_to_function[choice](file_path)
-        if commands_json:
-            results = await publish_commands(api, commands_json)
-            if results.get('success'):
-                logger.info("Successfully updated.")
-            else:
-                logger.error("Failed to update")
+        if args.command == "add-settings":
+            await execute_command(add_settings, args.file_path)
+        elif args.command == "apply-profile":
+            await execute_command(apply_device_profile, args.file_path, args.profile_id)
+        elif args.command == "add-tags":
+            await execute_command(add_tags, args.file_path, args.tags)
+        elif args.command == "change-def":
+            await execute_command(
+                change_thing_definition, args.file_path, args.thing_key
+            )
+        elif args.command == "undeploy":
+            await execute_command(undeploy_devices, args.file_path)
+        elif args.command == "delete-tags":
+            await execute_command(delete_tags, args.file_path, args.tags)
+        elif args.command == "delete-things-tags":
+            await execute_command(delete_things_by_tags, args.tags)
+        elif args.command == "delete-things-keys":
+            await execute_command(delete_things_by_keys, args.file_path)
+        else:
+            parser.print_help()
+
     except Exception as e:
         logger.error(f"An error occurred: {e}")
 
-
-async def main() -> None:
-    """
-    Process a file and generate commands based on user choices.
-    """
-    parser = argparse.ArgumentParser(
-        description='Process a file and generate commands.')
-    parser.add_argument(
-        'file_path', help='The path to the file to be processed')
-    args = parser.parse_args()
-
-    if not config["API_URL"]:
-        logger.error("API_URL environment variable is not set.")
-        return
-
-    api = OneEdgeApi(config["API_URL"])
-
-    if not await authenticate_and_verify(config, api):
-        return
-
-    logger.info("Connected!")
-
-    try:
-        while True:
-            try:
-                choice = await asyncio.wait_for(get_user_choice(), timeout=10)
-            except asyncio.TimeoutError:
-                logger.info("No input received. Exiting the program.")
-                break
-
-            if choice == 'q':
-                logger.info("Closing the session and exiting the program.")
-                break
-
-            await process_user_choice(choice, args.file_path, api)
-    finally:
-        await close_api_session(api)
-        await asyncio.sleep(5)
 
 if __name__ == "__main__":
     asyncio.run(main())
