@@ -1,7 +1,7 @@
 """
-OneEdge API Module
+oneEdge API Module
 
-This module provides a class to interact with the OneEdge API.
+This module provides a class to interact with the oneEdge API.
 """
 import asyncio
 from enum import Enum
@@ -23,7 +23,7 @@ class AuthState(Enum):
 
 
 class OneEdgeApiError(Exception):
-    """OneEdge API Error"""
+    """oneEdge API Error"""
 
     def __init__(self, message: str):
         """
@@ -46,7 +46,7 @@ class OneEdgeApi:
         Initializes a new instance of the OneEdgeApi class.
 
         Args:
-            endpoint_url (str): The URL of the OneEdge API endpoint.
+            endpoint_url (str): The URL of the oneEdge API endpoint.
         """
         self.endpoint_url: str = endpoint_url
         self._session_cache: TTLCache = TTLCache(maxsize=1, ttl=28800)
@@ -316,7 +316,7 @@ class OneEdgeApi:
 
     async def authenticate_user(self, username: str, password: str) -> bool:
         """
-        Authenticates the user with the OneEdge API.
+        Authenticates the user with the oneEdge API.
 
         Args:
             username (str): The username.
@@ -329,7 +329,7 @@ class OneEdgeApi:
         for attempt in range(self.MAX_RETRIES):
             if self.auth_state == AuthState.AUTHENTICATED or await self._attempt_authentication(username, password):
                 if await self._verify_auth_state():
-                    logger.info("Successfully authenticated with the OneEdge API", username=username)
+                    logger.info("Successfully authenticated with the oneEdge API", username=username)
                     return True
                 else:
                     logger.error("Failed to verify authentication state", username=username)
@@ -337,7 +337,7 @@ class OneEdgeApi:
             else:
                 logger.warning("Authentication attempt failed, retrying", attempt=attempt + 1)
                 await asyncio.sleep(self.RETRY_DELAY)
-        logger.error("Failed to authenticate with the OneEdge API after multiple attempts", username=username)
+        logger.error("Failed to authenticate with the oneEdge API after multiple attempts", username=username)
         return False
 
     async def _verify_auth_state(self) -> bool:
@@ -358,7 +358,7 @@ class OneEdgeApi:
 
     async def _attempt_authentication(self, username: str, password: str) -> bool:
         """
-        Attempts to authenticate with the OneEdge API.
+        Attempts to authenticate with the oneEdge API.
 
         Args:
             username (str): The username.

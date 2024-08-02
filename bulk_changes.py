@@ -16,7 +16,7 @@ from src.bulk_changes.create_commands import (
 )
 from src.bulk_changes.get_data import read_imei_and_setting, read_imei_only
 from src.logger.logger import Logger
-from src.OneEdge.OneEdgeAPI import OneEdgeApi, OneEdgeApiError
+from src.oneEdge.oneEdgeAPI import OneEdgeApi, OneEdgeApiError
 from src.bulk_changes.undeploy_process import undeploy_process
 
 logger = Logger(__name__)
@@ -112,7 +112,7 @@ async def change_thing_definition(
 
 async def undeploy_devices(file_path: str) -> Optional[Dict[str, Any]]:
     """
-    Reads IMEI numbers from a file, undeploy devices, and creates commands to undeploy devices in OneEdge.
+    Reads IMEI numbers from a file, undeploy devices, and creates commands to undeploy devices in oneEdge.
 
     :param file_path: Path to the input file containing IMEI numbers.
     :return: A dictionary containing the created commands, or None if an error occurs.
@@ -127,7 +127,7 @@ async def undeploy_devices(file_path: str) -> Optional[Dict[str, Any]]:
         undeploy_process(ids)
         logger.info("Undeploy process completed.")
 
-        logger.info("Creating OneEdge undeploy commands...")
+        logger.info("Creating oneEdge undeploy commands...")
         commands_json = await create_commands_undeploy(ids)
         logger.info(f"Created commands for {len(commands_json)} devices.")
         return commands_json
@@ -197,7 +197,7 @@ async def delete_things_by_keys(file_path: str) -> Optional[Dict[str, Any]]:
 
 async def process_commands(api: OneEdgeApi, commands: Dict[str, Any]) -> Dict[str, Any]:
     """
-    Processes the given commands by publishing them to the OneEdge API.
+    Processes the given commands by publishing them to the oneEdge API.
 
     :param api: An authenticated instance of OneEdgeApi.
     :param commands: A dictionary containing the commands to be processed.
@@ -214,7 +214,7 @@ async def process_commands(api: OneEdgeApi, commands: Dict[str, Any]) -> Dict[st
 
 async def authenticate_user() -> OneEdgeApi:
     """
-    Authenticates the user with the OneEdge API using environment variables for credentials.
+    Authenticates the user with the oneEdge API using environment variables for credentials.
 
     :return: An instance of OneEdgeApi with the user authenticated.
     :raises OneEdgeApiError: If authentication fails.

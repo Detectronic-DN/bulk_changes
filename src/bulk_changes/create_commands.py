@@ -1,5 +1,5 @@
 from typing import List, Dict, Optional, Any, Union
-from src.OneEdge.OneEdgeAPI import OneEdgeApi, OneEdgeApiError
+from src.oneEdge.oneEdgeAPI import OneEdgeApi, OneEdgeApiError
 from src.logger.logger import Logger
 
 logger = Logger(__name__)
@@ -7,7 +7,7 @@ logger = Logger(__name__)
 
 async def get_profile_id(one_edge_api: OneEdgeApi, profile_name: str) -> Optional[str]:
     """
-    Get profile ID from the OneEdge API.
+    Get profile ID from the oneEdge API.
 
     :param one_edge_api: Instance of OneEdgeApi.
     :param profile_name: Name of the profile to search for.
@@ -41,7 +41,7 @@ async def get_profile_id(one_edge_api: OneEdgeApi, profile_name: str) -> Optiona
 
 async def get_thing_def_key(one_edge_api: OneEdgeApi, thing_name: str) -> Optional[str]:
     """
-    Get thing definition key from the OneEdge API.
+    Get thing definition key from the oneEdge API.
 
     :param one_edge_api: Instance of OneEdgeApi.
     :param thing_name: Name of the thing definition to search for.

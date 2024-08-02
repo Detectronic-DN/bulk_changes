@@ -195,4 +195,4 @@ The tool requires certain environment variables, which should be set in a `.env`
 - `SQLITE3_DBPATH`: Path to the SQLite database on the remote server.
 - `SQLITE3_TABLE`: Name of the table in the SQLite database.
 
-Note: Just Update the `.env` file with thetelit credentials.
+Note: Just Update the `.env` file with the telit credentials.

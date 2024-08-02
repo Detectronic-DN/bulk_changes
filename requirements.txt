@@ -24,3 +24,4 @@ pycparser
 pytest-asyncio
 openpyxl
 pwinput
+pytest
