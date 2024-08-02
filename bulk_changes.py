@@ -1,6 +1,7 @@
 import os
 import argparse
 import asyncio
+import pwinput
 from typing import Dict, Any, Optional, List
 from dotenv import load_dotenv
 
@@ -204,9 +205,7 @@ async def process_commands(api: OneEdgeApi, commands: Dict[str, Any]) -> Dict[st
     :raises OneEdgeApiError: If there is an error in publishing the commands.
     """
     try:
-        logger.info("Publishing commands...")
         results: Dict[str, Any] = await api.run_commands(commands)
-        logger.info("Command execution successful.")
         return results
     except OneEdgeApiError as e:
         logger.error(f"Error publishing commands: {e}")
@@ -222,9 +221,15 @@ async def authenticate_user() -> OneEdgeApi:
     """
     try:
         api = OneEdgeApi(os.getenv("API_URL"))
+        username: str = os.getenv("TELIT_USERNAME", "")
+        password: str = os.getenv("TELIT_PASSWORD", "")
+        if not username:
+            username = input("Enter Telit Username: ")
+            password = pwinput.pwinput(prompt="Enter Telit Password: ")
 
         await api.authenticate_user(
-            username=os.getenv("TELIT_USERNAME"), password=os.getenv("TELIT_PASSWORD")
+            username=username,
+            password=password
         )
 
         logger.info("User authenticated successfully.")

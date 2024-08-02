@@ -252,6 +252,8 @@ class OneEdgeApi:
                 return True
             else:
                 self.last_error = auth_response.get('errorCodes', [None])[0]
+                if self.last_error == -90041:
+                    return await self._handle_auth_response()
                 self.auth_state = AuthState.NOT_AUTHENTICATED
                 return False
         except OneEdgeApiError as error:
@@ -281,7 +283,6 @@ class OneEdgeApi:
             if not res.get('success'):
                 logger.error("Error closing session", error_codes=res.get('errorCodes'))
             else:
-                logger.info("Session closed successfully")
                 return res
         except OneEdgeApiError as e:
             logger.exception("An error occurred while closing the session", error=str(e))
@@ -324,6 +325,7 @@ class OneEdgeApi:
         Returns:
             bool: True if authentication was successful, False otherwise.
         """
+        self.username = username
         for attempt in range(self.MAX_RETRIES):
             if self.auth_state == AuthState.AUTHENTICATED or await self._attempt_authentication(username, password):
                 if await self._verify_auth_state():
