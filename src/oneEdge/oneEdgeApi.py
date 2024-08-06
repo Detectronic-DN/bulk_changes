@@ -305,7 +305,6 @@ class OneEdgeApi:
             request = await self.run_command({"command": "session.info"})
             if request["success"]:
                 self.auth_state = AuthState.AUTHENTICATED
-                logger.info("Auth state verified as AUTHENTICATED")
             else:
                 self.session_id = None
                 self.auth_state = AuthState.NOT_AUTHENTICATED
@@ -329,7 +328,6 @@ class OneEdgeApi:
         for attempt in range(self.MAX_RETRIES):
             if self.auth_state == AuthState.AUTHENTICATED or await self._attempt_authentication(username, password):
                 if await self._verify_auth_state():
-                    logger.info("Successfully authenticated with the oneEdge API", username=username)
                     return True
                 else:
                     logger.error("Failed to verify authentication state", username=username)
@@ -350,7 +348,6 @@ class OneEdgeApi:
         try:
             await self.verify_auth_state()
             if self.auth_state == AuthState.AUTHENTICATED:
-                logger.info("Authentication state verified")
                 return True
         except OneEdgeApiError as e:
             logger.error("Error verifying authentication state", error=str(e))
