@@ -3,7 +3,7 @@ import time
 from functools import wraps
 from typing import Any, Callable, Dict, Optional, TypeVar
 
-T = TypeVar('T')
+T = TypeVar("T")
 
 
 class ColorFormatter(logging.Formatter):
@@ -20,8 +20,13 @@ class ColorFormatter(logging.Formatter):
     }
     RESET_CODE: str = "\033[0m"
 
-    def __init__(self, fmt: Optional[str] = None, datefmt: Optional[str] = None, style: str = '%',
-                 use_color: bool = True) -> None:
+    def __init__(
+        self,
+        fmt: Optional[str] = None,
+        datefmt: Optional[str] = None,
+        style: str = "%",
+        use_color: bool = True,
+    ) -> None:
         """
         Initialize the ColorFormatter.
 
@@ -48,7 +53,7 @@ class ColorFormatter(logging.Formatter):
             record.color_on = self.COLOR_CODES.get(record.levelno, self.RESET_CODE)
             record.color_off = self.RESET_CODE
         else:
-            record.color_on = record.color_off = ''
+            record.color_on = record.color_off = ""
         return super().format(record)
 
 
@@ -86,7 +91,7 @@ class Logger:
             message (str): The message to log.
             **context: Additional context to include in the log message.
         """
-        context_str = ' '.join(f"{k}={v}" for k, v in context.items())
+        context_str = " ".join(f"{k}={v}" for k, v in context.items())
         full_message = f"{message} [{context_str}]" if context_str else message
         self.logger.log(level, full_message)
 
@@ -151,7 +156,9 @@ class Logger:
         self.logger.exception(message, extra=context)
 
     @staticmethod
-    def log_execution(level: int = logging.INFO) -> Callable[[Callable[..., T]], Callable[..., T]]:
+    def log_execution(
+        level: int = logging.INFO,
+    ) -> Callable[[Callable[..., T]], Callable[..., T]]:
         """
         Decorator to log the execution of a function.
 
