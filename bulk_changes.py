@@ -16,7 +16,7 @@ from src.bulk_changes.create_commands import (
 )
 from src.bulk_changes.get_data import read_imei_and_setting, read_imei_only
 from src.logger.logger import Logger
-from src.oneEdge.oneEdgeAPI import OneEdgeApi, OneEdgeApiError
+from src.oneEdge.oneEdgeApi import OneEdgeApi, OneEdgeApiError
 from src.bulk_changes.undeploy_process import undeploy_process
 
 logger = Logger(__name__)

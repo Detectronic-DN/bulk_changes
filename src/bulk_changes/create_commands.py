@@ -1,5 +1,5 @@
 from typing import List, Dict, Optional, Any, Union
-from src.oneEdge.oneEdgeAPI import OneEdgeApi, OneEdgeApiError
+from src.oneEdge.oneEdgeApi import OneEdgeApi, OneEdgeApiError
 from src.logger.logger import Logger
 
 logger = Logger(__name__)
